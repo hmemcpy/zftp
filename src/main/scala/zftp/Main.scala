@@ -1,0 +1,5 @@
+package zftp
+
+object Main {
+
+}

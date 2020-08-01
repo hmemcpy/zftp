@@ -4,7 +4,7 @@ import com.jcraft.jsch.{ChannelSftp, JSch, Session}
 import zio.ZManaged
 import zio.blocking.{Blocking, effectBlocking}
 
-final case class SFTPConfig(hostname: String, privateKey: String)
+final case class SFTPConfig(hostname: String, username: String, password: String, privateKey: Option[String])
 
 final case class SFTPSession(session: Session, channel: ChannelSftp)
 
@@ -18,8 +18,12 @@ object SFTPSession {
   def establishSession(config: SFTPConfig): ZManaged[Blocking, Throwable, Session] =
     effectBlocking {
       val jsch = new JSch
-      jsch.addIdentity("pk", config.privateKey.getBytes, null, null)
-      val session = jsch.getSession(config.hostname)
+      config.privateKey.foreach { privateKey =>
+        jsch.addIdentity("pk", privateKey.getBytes, null, null)
+      }
+      val session = jsch.getSession(config.username, config.hostname)
+      session.setConfig("StrictHostKeyChecking", "no")
+      session.setPassword(config.password)
       session.connect()
       session
     }.toManaged(session => effectBlocking(session.disconnect()).orDie)
